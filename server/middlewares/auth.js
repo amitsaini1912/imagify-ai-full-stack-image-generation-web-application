@@ -1,4 +1,5 @@
-import jwt from 'jsonwebtoken'; 
+import jwt from 'jsonwebtoken';
+import { env } from '../configs/env.js';
 
 // User authentication middleware
 const authUser = async (req, res, next) => {
@@ -12,7 +13,7 @@ const authUser = async (req, res, next) => {
 
     try {
         // Verify the token using the secret key
-        const tokenDecode = jwt.verify(token, process.env.JWT_SECRET);
+        const tokenDecode = jwt.verify(token, env.JWT_SECRET);
 
         // Check if the decoded token contains a user ID
         if (tokenDecode.id) {

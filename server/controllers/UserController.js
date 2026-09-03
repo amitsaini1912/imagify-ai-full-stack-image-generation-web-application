@@ -4,6 +4,7 @@ import razorpay from 'razorpay';
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import stripe from "stripe";
+import { env } from "../configs/env.js"
 
 // API to register user
 const registerUser = async (req, res) => {
@@ -29,7 +30,7 @@ const registerUser = async (req, res) => {
         const newUser = new userModel(userData)
         const user = await newUser.save()
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
+        const token = jwt.sign({ id: user._id }, env.JWT_SECRET)
 
         res.json({ success: true, token, user: { name: user.name } })
 
@@ -53,7 +54,7 @@ const loginUser = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (isMatch) {
-            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
+            const token = jwt.sign({ id: user._id }, env.JWT_SECRET)
             res.json({ success: true, token, user: { name: user.name } })
         }
         else {
@@ -83,8 +84,8 @@ const userCredits = async (req, res) => {
 
 // razorpay gateway initialize
 const razorpayInstance = new razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
+    key_id: env.RAZORPAY_KEY_ID,
+    key_secret: env.RAZORPAY_KEY_SECRET,
 });
 
 
@@ -144,7 +145,7 @@ const paymentRazorpay = async (req, res) => {
         // Creating options to create razorpay Order
         const options = {
             amount: amount * 100,
-            currency: process.env.CURRENCY,
+            currency: env.CURRENCY,
             receipt: newTransaction._id,
         }
 
@@ -200,7 +201,7 @@ const verifyRazorpay = async (req, res) => {
 }
 
 // Stripe Gateway Initialize
-const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY)
+const stripeInstance = new stripe(env.STRIPE_SECRET_KEY)
 
 // Payment API to add credits ( Stripe )
 const paymentStripe = async (req, res) => {
@@ -256,7 +257,7 @@ const paymentStripe = async (req, res) => {
         // Saving Transaction Data to Database
         const newTransaction = await transactionModel.create(transactionData)
 
-        const currency = process.env.CURRENCY.toLocaleLowerCase()
+        const currency = env.CURRENCY.toLocaleLowerCase()
 
         // Creating line items to for Stripe
         const line_items = [{

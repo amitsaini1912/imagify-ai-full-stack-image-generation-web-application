@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import { env } from './configs/env.js'; // FIRST — validates all env vars before anything else loads
 import express from 'express'
 import cors from 'cors'
 import userRouter from './routes/userRoutes.js';
@@ -6,7 +6,7 @@ import connectDB from './configs/mongodb.js';
 import imageRouter from './routes/imageRoutes.js';
 
 // App Config
-const PORT = process.env.PORT || 4000
+const PORT = env.PORT
 const app = express();
 
 try {

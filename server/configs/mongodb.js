@@ -1,12 +1,7 @@
 import mongoose from "mongoose";
+import { env } from "./env.js";
 
 const connectDB = async () => {
-    const mongoUri = process.env.MONGODB_URI?.trim();
-
-    if (!mongoUri) {
-        throw new Error("MONGODB_URI is missing from server/.env");
-    }
-
     mongoose.connection.on('connected', () => {
         console.log("Database Connected");
     })
@@ -15,10 +10,9 @@ const connectDB = async () => {
         console.error("MongoDB connection error:", error.message);
     })
 
-    await mongoose.connect(mongoUri, {
+    await mongoose.connect(env.MONGODB_URI, {
         dbName: 'ai-image'
     })
-
 }
 
 export default connectDB;

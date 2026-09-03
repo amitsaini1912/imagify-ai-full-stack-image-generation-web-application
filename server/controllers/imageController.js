@@ -1,3 +1,4 @@
+import { env } from "../configs/env.js"
 import axios from 'axios'
 import fs from 'fs'
 import FormData from 'form-data'
@@ -30,7 +31,7 @@ export const generateImage = async (req, res) => {
     // Calling Clipdrop API
     const { data } = await axios.post('https://clipdrop-api.co/text-to-image/v1', formdata, {
       headers: {
-        'x-api-key': process.env.CLIPDROP_API,
+        'x-api-key': env.CLIPDROP_API,
       },
       responseType: "arraybuffer"
     })
