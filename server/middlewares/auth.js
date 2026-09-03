@@ -1,36 +1,28 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../configs/env.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { AppError } from '../utils/AppError.js';
 
 // User authentication middleware
-const authUser = async (req, res, next) => {
-    // Extract the token from headers
+const authUser = asyncHandler(async (req, res, next) => {
     const { token } = req.headers;
 
-    // Check if the token is missing
     if (!token) {
-        return res.json({ success: false, message: 'Not Authorized. Login Again' });
+        throw new AppError('Not authorized. Please log in again.', 401);
     }
 
-    try {
-        // Verify the token using the secret key
-        const tokenDecode = jwt.verify(token, env.JWT_SECRET);
+    // A bad/expired token makes jwt.verify throw — asyncHandler forwards it,
+    // and errorHandler maps JsonWebTokenError / TokenExpiredError to 401.
+    const tokenDecode = jwt.verify(token, env.JWT_SECRET);
 
-        // Check if the decoded token contains a user ID
-        if (tokenDecode.id) {
-
-            // Attach user ID to the request body
-            req.body.userId = tokenDecode.id; 
-            
-        } else {
-            return res.json({ success: false, message: 'Not Authorized. Login Again' });
-        }
-
-        // Call the next function in the stack
-        next();
-    } catch (error) {
-        res.json({ success: false, message: error.message });
+    if (!tokenDecode.id) {
+        throw new AppError('Not authorized. Please log in again.', 401);
     }
-};
 
-// Export the middleware
-export default authUser; 
+    // Attach the user id to the request for the controllers to use.
+    req.body.userId = tokenDecode.id;
+
+    next();
+});
+
+export default authUser;

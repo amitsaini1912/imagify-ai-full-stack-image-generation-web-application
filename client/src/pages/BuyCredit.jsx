@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import { motion } from 'framer-motion'
+import { getErrorMessage } from '../utils/getErrorMessage'
 
 const BuyCredit = () => {
 
@@ -26,15 +27,12 @@ const BuyCredit = () => {
       handler: async (response) => {
 
         try {
-
-          const { data } = await axios.post(backendUrl + '/api/user/verify-razor', response, { headers: { token } })
-          if (data.success) {
-            loadCreditsData()
-            navigate('/')
-            toast.success('Credit Added')
-          }
+          await axios.post(backendUrl + '/api/user/verify-razor', response, { headers: { token } })
+          loadCreditsData()
+          navigate('/')
+          toast.success('Credits added')
         } catch (error) {
-          toast.error(error.message)
+          toast.error(getErrorMessage(error))
         }
 
       }
@@ -50,30 +48,29 @@ const BuyCredit = () => {
 
       if (!user) {
         setShowLogin(true)
+        return
       }
 
       const { data } = await axios.post(backendUrl + '/api/user/pay-razor', { planId }, { headers: { token } })
-      if (data.success) {
-        initPay(data.order)
-      }
+      initPay(data.order)
     } catch (error) {
-      toast.error(error.message)
+      toast.error(getErrorMessage(error))
     }
   }
 
   const paymentStripe = async (planId) => {
     try {
 
-      const { data } = await axios.post(backendUrl + '/api/user/pay-stripe', { planId }, { headers: { token } })
-      if (data.success) {
-        const { session_url } = data
-        window.location.replace(session_url)
-      } else {
-        toast.error(data.message)
+      if (!user) {
+        setShowLogin(true)
+        return
       }
+
+      const { data } = await axios.post(backendUrl + '/api/user/pay-stripe', { planId }, { headers: { token } })
+      window.location.replace(data.session_url)
     } catch (error) {
       console.log(error)
-      toast.error(error.message)
+      toast.error(getErrorMessage(error))
     }
   }
 

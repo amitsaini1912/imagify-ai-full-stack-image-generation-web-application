@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 // The rules. One line per variable this app needs.
 const envSchema = z.object({
+  NODE_ENV:            z.enum(['development', 'test', 'production']).default('development'),
   PORT:                z.coerce.number().int().positive().default(4000),
   MONGODB_URI:         z.string().min(1, 'MONGODB_URI is required'),
   JWT_SECRET:          z.string().min(10, 'JWT_SECRET must be at least 10 characters'),

@@ -4,6 +4,7 @@ import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { motion } from 'framer-motion'
+import { getErrorMessage } from '../utils/getErrorMessage'
 
 const Login = () => {
 
@@ -18,39 +19,17 @@ const Login = () => {
         e.preventDefault()
 
         try {
+            const url = state === 'Login' ? '/api/user/login' : '/api/user/register'
+            const payload = state === 'Login' ? { email, password } : { name, email, password }
 
-            if (state === 'Login') {
+            const { data } = await axios.post(backendUrl + url, payload)
 
-                const { data } = await axios.post(backendUrl + '/api/user/login', { email, password })
-
-                if (data.success) {
-                    setToken(data.token)
-                    setUser(data.user)
-                    localStorage.setItem('token', data.token)
-                    setShowLogin(false)
-                } else {
-                    toast.error(data.message)
-                }
-
-            } else {
-
-                const { data } = await axios.post(backendUrl + '/api/user/register', { name, email, password })
-
-                if (data.success) {
-                    setToken(data.token)
-                    setUser(data.user)
-                    localStorage.setItem('token', data.token)
-                    setShowLogin(false)
-                } else {
-                    toast.error(data.message)
-                }
-
-            }
-
-
-
+            setToken(data.token)
+            setUser(data.user)
+            localStorage.setItem('token', data.token)
+            setShowLogin(false)
         } catch (error) {
-            toast.error(error.message)
+            toast.error(getErrorMessage(error))
         }
     }
 

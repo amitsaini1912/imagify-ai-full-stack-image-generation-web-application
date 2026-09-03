@@ -2,6 +2,7 @@ import { createContext, useEffect, useState } from "react";
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from "react-router-dom";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 export const AppContext = createContext()
 
@@ -18,37 +19,27 @@ const AppContextProvider = (props) => {
 
     const loadCreditsData = async () => {
         try {
-
             const { data } = await axios.get(backendUrl + '/api/user/credits', { headers: { token } })
-            if (data.success) {
-                setCredit(data.credits)
-                setUser(data.user)
-            }
-
+            setCredit(data.credits)
+            setUser(data.user)
         } catch (error) {
             console.log(error)
-            toast.error(error.message)
+            toast.error(getErrorMessage(error))
         }
     }
 
     const generateImage = async (prompt) => {
         try {
-
             const { data } = await axios.post(backendUrl + '/api/image/generate-image', { prompt }, { headers: { token } })
-
-            if (data.success) {
-                loadCreditsData()
-                return data.resultImage
-            } else {
-                toast.error(data.message)
-                loadCreditsData()
-                if (data.creditBalance === 0) {
-                    navigate('/buy')
-                }
-            }
-
+            loadCreditsData()
+            return data.resultImage
         } catch (error) {
-            toast.error(error.message)
+            toast.error(getErrorMessage(error))
+            loadCreditsData()
+            // 402 = "No credit balance" from the backend
+            if (error.response?.status === 402) {
+                navigate('/buy')
+            }
         }
     }
 

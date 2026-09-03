@@ -4,6 +4,7 @@ import cors from 'cors'
 import userRouter from './routes/userRoutes.js';
 import connectDB from './configs/mongodb.js';
 import imageRouter from './routes/imageRoutes.js';
+import { notFound, errorHandler } from './middlewares/errorHandler.js';
 
 // App Config
 const PORT = env.PORT
@@ -25,6 +26,12 @@ app.use('/api/user',userRouter)
 app.use('/api/image',imageRouter)
 
 app.get('/', (req,res) => res.send("API Working"))
+
+// No route matched -> 404 JSON
+app.use(notFound)
+
+// The one error handler. Must be last, must take 4 args.
+app.use(errorHandler)
 
 const server = app.listen(PORT, () => console.log('Server running on port ' + PORT));
 

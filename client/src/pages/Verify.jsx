@@ -3,6 +3,7 @@ import React, { useContext, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppContext } from '../context/AppContext';
 import { toast } from 'react-toastify';
+import { getErrorMessage } from '../utils/getErrorMessage';
 
 const Verify = () => {
 
@@ -19,21 +20,14 @@ const Verify = () => {
     const verifyStripe = async () => {
 
         try {
-
             const { data } = await axios.post(backendUrl + "/api/user/verify-stripe", { success, transactionId }, { headers: { token } })
-
-            if (data.success) {
-                toast.success(data.message)
-                loadCreditsData()
-            } else {
-                toast.error(data.message)
-            }
-
-            navigate("/")
-
+            toast.success(data.message)
+            loadCreditsData()
         } catch (error) {
-            toast.error(error.message)
+            toast.error(getErrorMessage(error))
             console.log(error)
+        } finally {
+            navigate("/")
         }
 
     }
