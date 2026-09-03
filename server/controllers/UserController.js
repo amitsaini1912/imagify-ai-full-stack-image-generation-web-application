@@ -9,12 +9,9 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { AppError } from "../utils/AppError.js"
 
 // API to register user
+// body already validated + trimmed by validate(registerSchema)
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-        throw new AppError('Name, email and password are all required', 400)
-    }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt)
@@ -30,10 +27,6 @@ const registerUser = asyncHandler(async (req, res) => {
 // API to login user
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-        throw new AppError('Email and password are required', 400)
-    }
 
     const user = await userModel.findOne({ email })
 
@@ -80,10 +73,7 @@ const paymentRazorpay = asyncHandler(async (req, res) => {
         throw new AppError('User not found', 404)
     }
 
-    const selected = PLANS[planId]
-    if (!selected) {
-        throw new AppError('Unknown plan', 400)
-    }
+    const selected = PLANS[planId] // planId is validated against this list by validate(planSchema)
 
     const newTransaction = await transactionModel.create({
         userId,
@@ -141,10 +131,7 @@ const paymentStripe = asyncHandler(async (req, res) => {
         throw new AppError('User not found', 404)
     }
 
-    const selected = PLANS[planId]
-    if (!selected) {
-        throw new AppError('Unknown plan', 400)
-    }
+    const selected = PLANS[planId] // planId is validated against this list by validate(planSchema)
 
     const newTransaction = await transactionModel.create({
         userId,

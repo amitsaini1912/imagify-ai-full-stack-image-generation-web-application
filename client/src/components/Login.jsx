@@ -70,7 +70,7 @@ const Login = () => {
 
                 <div className='border px-6 py-2 flex items-center gap-2 rounded-full mt-4'>
                     <img src={assets.lock_icon} alt="" />
-                    <input onChange={e => setPassword(e.target.value)} value={password} className='outline-none text-sm' type="password" placeholder='Password' />
+                    <input onChange={e => setPassword(e.target.value)} value={password} className='outline-none text-sm' type="password" placeholder='Password' required minLength={state === 'Login' ? undefined : 8} />
                 </div>
 
                 <p className='text-sm text-blue-600 my-4 cursor-pointer'>Forgot password?</p>

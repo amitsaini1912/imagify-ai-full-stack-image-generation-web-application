@@ -10,11 +10,8 @@ const CLIPDROP_URL = 'https://clipdrop-api.co/text-to-image/v1'
 // Controller function to generate image from prompt
 // POST /api/image/generate-image
 export const generateImage = asyncHandler(async (req, res) => {
+  // prompt is validated + trimmed by validate(generateImageSchema)
   const { userId, prompt } = req.body
-
-  if (!prompt) {
-    throw new AppError('A prompt is required', 400)
-  }
 
   const user = await userModel.findById(userId)
   if (!user) {
