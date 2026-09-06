@@ -29,11 +29,12 @@ export const errorHandler = (err, req, res, next) => {
 
   const isOperational = err instanceof AppError || statusCode < 500
 
-  // Log server-side: full error + stack for 5xx, one line for 4xx.
+  // req.log is the per-request logger pino-http attached — it already carries this
+  // request's id, so this line and the request-completion log line are tied together.
   if (statusCode >= 500) {
-    console.error(err)
+    req.log.error({ err }, message)
   } else {
-    console.warn(`${statusCode} ${req.method} ${req.originalUrl} — ${message}`)
+    req.log.warn({ err }, message)
   }
 
   res.status(statusCode).json({

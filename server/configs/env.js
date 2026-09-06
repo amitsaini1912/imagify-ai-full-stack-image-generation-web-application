@@ -15,6 +15,7 @@ const envSchema = z.object({
   CURRENCY:            z.string().min(1).default('INR'),
   // Comma-separated list of origins allowed to call this API (the client's own URL(s)).
   CLIENT_URL:          z.string().min(1).default('http://localhost:5173'),
+  LOG_LEVEL:           z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 })
 
 // safeParse = don't throw, give back a result object to inspect

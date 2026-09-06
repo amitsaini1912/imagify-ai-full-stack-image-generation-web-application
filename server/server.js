@@ -8,6 +8,8 @@ import imageRouter from './routes/imageRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 import { apiLimiter } from './middlewares/rateLimit.js';
 import { AppError } from './utils/AppError.js';
+import { requestLogger, attachRequestId } from './middlewares/requestLogger.js';
+import { logger } from './configs/logger.js';
 
 // App Config
 const PORT = env.PORT
@@ -16,11 +18,15 @@ const app = express();
 try {
     await connectDB()
 } catch (error) {
-    console.error('Failed to connect to MongoDB:', error.message);
+    logger.error({ err: error }, 'Failed to connect to MongoDB');
     process.exit(1);
 }
 
 // Intialize Middlewares
+// First, so every request — even one CORS/rate-limit rejects later — gets logged and an id.
+app.use(requestLogger)
+app.use(attachRequestId)
+
 app.use(helmet())
 
 // Only these origins may call the API — anything else is rejected before it reaches a route.
@@ -55,11 +61,11 @@ app.use(notFound)
 // The one error handler. Must be last, must take 4 args.
 app.use(errorHandler)
 
-const server = app.listen(PORT, () => console.log('Server running on port ' + PORT));
+const server = app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 
 server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Set a different PORT in server/.env or stop the process using it.`);
+        logger.error(`Port ${PORT} is already in use. Set a different PORT in server/.env or stop the process using it.`);
         process.exit(1);
     }
 
