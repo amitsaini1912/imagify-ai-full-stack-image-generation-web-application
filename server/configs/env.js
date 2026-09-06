@@ -13,6 +13,8 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().min(1, 'RAZORPAY_KEY_SECRET is required'),
   STRIPE_SECRET_KEY:   z.string().min(1, 'STRIPE_SECRET_KEY is required'),
   CURRENCY:            z.string().min(1).default('INR'),
+  // Comma-separated list of origins allowed to call this API (the client's own URL(s)).
+  CLIENT_URL:          z.string().min(1).default('http://localhost:5173'),
 })
 
 // safeParse = don't throw, give back a result object to inspect

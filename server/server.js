@@ -1,10 +1,13 @@
 import { env } from './configs/env.js'; // FIRST — validates all env vars before anything else loads
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import userRouter from './routes/userRoutes.js';
 import connectDB from './configs/mongodb.js';
 import imageRouter from './routes/imageRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
+import { apiLimiter } from './middlewares/rateLimit.js';
+import { AppError } from './utils/AppError.js';
 
 // App Config
 const PORT = env.PORT
@@ -18,8 +21,27 @@ try {
 }
 
 // Intialize Middlewares
+app.use(helmet())
+
+// Only these origins may call the API — anything else is rejected before it reaches a route.
+const allowedOrigins = env.CLIENT_URL.split(',').map((origin) => origin.trim())
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // No Origin header = same-origin request, curl, a server-to-server call — allow it.
+        // A browser request that's cross-origin always sends Origin, so this can't be spoofed
+        // by a browser page pretending to be a different site.
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true)
+        }
+        callback(new AppError('Not allowed by CORS', 403))
+    },
+}))
+
 app.use(express.json())
-app.use(cors())
+
+// Global request budget, applied before any route runs.
+app.use('/api', apiLimiter)
 
 // API routes
 app.use('/api/user',userRouter)
