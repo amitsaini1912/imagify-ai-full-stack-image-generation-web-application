@@ -20,7 +20,7 @@ const Verify = () => {
     const verifyStripe = async () => {
 
         try {
-            const { data } = await axios.post(backendUrl + "/api/user/verify-stripe", { success, transactionId }, { headers: { token } })
+            const { data } = await axios.post(backendUrl + "/api/user/verify-stripe", { success, transactionId }, { headers: { Authorization: `Bearer ${token}` } })
             toast.success(data.message)
             loadCreditsData()
         } catch (error) {

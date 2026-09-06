@@ -5,11 +5,14 @@ import { AppError } from '../utils/AppError.js';
 
 // User authentication middleware
 const authUser = asyncHandler(async (req, res, next) => {
-    const { token } = req.headers;
+    const { authorization } = req.headers;
 
-    if (!token) {
+    // Standard header shape: "Authorization: Bearer <token>".
+    if (!authorization || !authorization.startsWith('Bearer ')) {
         throw new AppError('Not authorized. Please log in again.', 401);
     }
+
+    const token = authorization.slice('Bearer '.length);
 
     // A bad/expired token makes jwt.verify throw — asyncHandler forwards it,
     // and errorHandler maps JsonWebTokenError / TokenExpiredError to 401.
@@ -19,8 +22,9 @@ const authUser = asyncHandler(async (req, res, next) => {
         throw new AppError('Not authorized. Please log in again.', 401);
     }
 
-    // Attach the user id to the request for the controllers to use.
-    req.body.userId = tokenDecode.id;
+    // Identity lives on req.user, never req.body — req.body belongs to the
+    // request's own payload and gets fully overwritten by validate() below.
+    req.user = { id: tokenDecode.id };
 
     next();
 });

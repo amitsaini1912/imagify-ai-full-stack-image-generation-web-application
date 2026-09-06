@@ -2,8 +2,8 @@ import { AppError } from '../utils/AppError.js'
 
 // validate(schema) -> Express middleware.
 // Checks req.body against the schema. On failure: one 400 with every problem listed.
-// On success: merges the parsed (trimmed, typed) values back onto req.body,
-// keeping anything a prior middleware added (e.g. authUser's userId).
+// On success: replaces req.body with the parsed (trimmed, typed) values — identity
+// lives on req.user (set by authUser), so there's nothing of req.body worth keeping.
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
 
@@ -14,6 +14,6 @@ export const validate = (schema) => (req, res, next) => {
     return next(new AppError(message, 400))
   }
 
-  req.body = { ...req.body, ...result.data }
+  req.body = result.data
   next()
 }

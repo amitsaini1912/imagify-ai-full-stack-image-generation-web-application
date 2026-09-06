@@ -27,7 +27,7 @@ const BuyCredit = () => {
       handler: async (response) => {
 
         try {
-          await axios.post(backendUrl + '/api/user/verify-razor', response, { headers: { token } })
+          await axios.post(backendUrl + '/api/user/verify-razor', response, { headers: { Authorization: `Bearer ${token}` } })
           loadCreditsData()
           navigate('/')
           toast.success('Credits added')
@@ -51,7 +51,7 @@ const BuyCredit = () => {
         return
       }
 
-      const { data } = await axios.post(backendUrl + '/api/user/pay-razor', { planId }, { headers: { token } })
+      const { data } = await axios.post(backendUrl + '/api/user/pay-razor', { planId }, { headers: { Authorization: `Bearer ${token}` } })
       initPay(data.order)
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -66,7 +66,7 @@ const BuyCredit = () => {
         return
       }
 
-      const { data } = await axios.post(backendUrl + '/api/user/pay-stripe', { planId }, { headers: { token } })
+      const { data } = await axios.post(backendUrl + '/api/user/pay-stripe', { planId }, { headers: { Authorization: `Bearer ${token}` } })
       window.location.replace(data.session_url)
     } catch (error) {
       console.log(error)

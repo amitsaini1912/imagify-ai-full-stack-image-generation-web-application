@@ -7,6 +7,7 @@ const envSchema = z.object({
   PORT:                z.coerce.number().int().positive().default(4000),
   MONGODB_URI:         z.string().min(1, 'MONGODB_URI is required'),
   JWT_SECRET:          z.string().min(10, 'JWT_SECRET must be at least 10 characters'),
+  JWT_EXPIRES_IN:      z.string().min(1).default('7d'),
   CLIPDROP_API:        z.string().min(1, 'CLIPDROP_API is required'),
   RAZORPAY_KEY_ID:     z.string().min(1, 'RAZORPAY_KEY_ID is required'),
   RAZORPAY_KEY_SECRET: z.string().min(1, 'RAZORPAY_KEY_SECRET is required'),

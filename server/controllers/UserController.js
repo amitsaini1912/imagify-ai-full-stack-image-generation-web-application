@@ -19,7 +19,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // duplicate email -> mongo 11000 -> errorHandler turns it into 409
     const user = await userModel.create({ name, email, password: hashedPassword })
 
-    const token = jwt.sign({ id: user._id }, env.JWT_SECRET)
+    const token = jwt.sign({ id: user._id }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN })
 
     res.status(201).json({ success: true, token, user: { name: user.name } })
 })
@@ -36,14 +36,14 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new AppError('Invalid email or password', 401)
     }
 
-    const token = jwt.sign({ id: user._id }, env.JWT_SECRET)
+    const token = jwt.sign({ id: user._id }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN })
 
     res.json({ success: true, token, user: { name: user.name } })
 })
 
 // API Controller function to get user available credits data
 const userCredits = asyncHandler(async (req, res) => {
-    const user = await userModel.findById(req.body.userId)
+    const user = await userModel.findById(req.user.id)
 
     if (!user) {
         throw new AppError('User not found', 404)
@@ -66,7 +66,8 @@ const PLANS = {
 
 // Payment API to add credits
 const paymentRazorpay = asyncHandler(async (req, res) => {
-    const { userId, planId } = req.body
+    const userId = req.user.id
+    const { planId } = req.body
 
     const userData = await userModel.findById(userId)
     if (!userData) {
@@ -123,7 +124,8 @@ const stripeInstance = new stripe(env.STRIPE_SECRET_KEY)
 
 // Payment API to add credits ( Stripe )
 const paymentStripe = asyncHandler(async (req, res) => {
-    const { userId, planId } = req.body
+    const userId = req.user.id
+    const { planId } = req.body
     const { origin } = req.headers
 
     const userData = await userModel.findById(userId)

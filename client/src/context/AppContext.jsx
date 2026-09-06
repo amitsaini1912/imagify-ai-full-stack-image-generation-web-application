@@ -19,7 +19,7 @@ const AppContextProvider = (props) => {
 
     const loadCreditsData = async () => {
         try {
-            const { data } = await axios.get(backendUrl + '/api/user/credits', { headers: { token } })
+            const { data } = await axios.get(backendUrl + '/api/user/credits', { headers: { Authorization: `Bearer ${token}` } })
             setCredit(data.credits)
             setUser(data.user)
         } catch (error) {
@@ -30,7 +30,7 @@ const AppContextProvider = (props) => {
 
     const generateImage = async (prompt) => {
         try {
-            const { data } = await axios.post(backendUrl + '/api/image/generate-image', { prompt }, { headers: { token } })
+            const { data } = await axios.post(backendUrl + '/api/image/generate-image', { prompt }, { headers: { Authorization: `Bearer ${token}` } })
             loadCreditsData()
             return data.resultImage
         } catch (error) {
