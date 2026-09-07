@@ -28,7 +28,8 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await userModel.findOne({ email })
+    // password has select:false on the schema — must ask for it explicitly here
+    const user = await userModel.findOne({ email }).select('+password')
 
     // Same message whether the email is unknown or the password is wrong,
     // so an attacker can't use this endpoint to discover which emails exist.
