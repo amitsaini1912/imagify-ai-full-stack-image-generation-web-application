@@ -14,12 +14,21 @@ export const generateImage = asyncHandler(async (req, res) => {
   // prompt is validated + trimmed by validate(generateImageSchema)
   const { prompt } = req.body
 
-  const user = await userModel.findById(userId)
-  if (!user) {
-    throw new AppError('User not found', 404)
-  }
+  // Atomic: only matches (and decrements) if the balance is still >= 1 at the moment
+  // Mongo applies the update. Two concurrent requests reading balance=1 can no longer
+  // both pass a separate check and both proceed — the condition is checked and the
+  // write happens as one indivisible step on the DB.
+  const deducted = await userModel.findOneAndUpdate(
+    { _id: userId, creditBalance: { $gte: 1 } },
+    { $inc: { creditBalance: -1 } },
+    { new: true },
+  )
 
-  if (user.creditBalance <= 0) {
+  if (!deducted) {
+    const exists = await userModel.exists({ _id: userId })
+    if (!exists) {
+      throw new AppError('User not found', 404)
+    }
     throw new AppError('No credit balance. Please buy a plan.', 402)
   }
 
@@ -33,19 +42,18 @@ export const generateImage = asyncHandler(async (req, res) => {
       responseType: 'arraybuffer',
     }))
   } catch (err) {
-    // The upstream image service failed — that is not our bug and not a 500.
+    // The upstream image service failed after we already spent the credit — give it back.
+    await userModel.findByIdAndUpdate(userId, { $inc: { creditBalance: 1 } })
     throw new AppError('Image generation service is unavailable. Please try again.', 502)
   }
 
   const base64Image = Buffer.from(data, 'binary').toString('base64')
   const resultImage = `data:image/png;base64,${base64Image}`
 
-  await userModel.findByIdAndUpdate(user._id, { creditBalance: user.creditBalance - 1 })
-
   res.json({
     success: true,
     message: 'Image generated',
     resultImage,
-    creditBalance: user.creditBalance - 1,
+    creditBalance: deducted.creditBalance,
   })
 })
