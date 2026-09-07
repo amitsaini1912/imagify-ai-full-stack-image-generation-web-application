@@ -24,7 +24,9 @@ export const planSchema = z.object({
 
 export const verifyRazorpaySchema = z.object({
   razorpay_order_id: z.string().min(1, 'razorpay_order_id is required'),
-}).passthrough() // razorpay also sends payment_id + signature — keep them for Day 10
+  razorpay_payment_id: z.string().min(1, 'razorpay_payment_id is required'),
+  razorpay_signature: z.string().min(1, 'razorpay_signature is required'),
+})
 
 export const verifyStripeSchema = z.object({
   transactionId: z.string().min(1, 'transactionId is required'),

@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import userModel from "../models/userModel.js"
 import transactionModel from "../models/transactionModel.js"
 import razorpay from 'razorpay';
@@ -91,31 +92,54 @@ const paymentRazorpay = asyncHandler(async (req, res) => {
         receipt: String(newTransaction._id),
     })
 
+    // Save the Razorpay order id now — verifyRazorpay looks the transaction up by this,
+    // instead of calling Razorpay's API again just to read the receipt back.
+    await transactionModel.findByIdAndUpdate(newTransaction._id, { orderId: order.id })
+
     res.json({ success: true, order })
 })
 
 // API Controller function to verify razorpay payment
 const verifyRazorpay = asyncHandler(async (req, res) => {
-    const { razorpay_order_id } = req.body
+    // All three fields required + non-empty — enforced by validate(verifyRazorpaySchema)
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
 
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id)
+    // Razorpay signs order_id + "|" + payment_id with our key secret only after a real,
+    // captured payment. Recomputing that signature and comparing it proves this request
+    // actually came from Razorpay's checkout flow and wasn't hand-crafted by a client that
+    // just knows (non-secret) order/payment ids.
+    const expectedSignature = crypto
+        .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex')
 
-    if (orderInfo.status !== 'paid') {
-        throw new AppError('Payment not completed', 402)
+    const expected = Buffer.from(expectedSignature)
+    const received = Buffer.from(String(razorpay_signature))
+    const signatureValid = expected.length === received.length && crypto.timingSafeEqual(expected, received)
+
+    if (!signatureValid) {
+        throw new AppError('Invalid payment signature', 401)
     }
 
-    const transaction = await transactionModel.findById(orderInfo.receipt)
+    const transaction = await transactionModel.findOne({ orderId: razorpay_order_id })
     if (!transaction) {
         throw new AppError('Transaction not found', 404)
     }
-    if (transaction.payment) {
+
+    // Atomic: only the first call for this transaction can flip payment false -> true.
+    // A replayed/duplicate verify call (double-click, retried webhook) matches nothing
+    // the second time and is rejected before it can add credits again.
+    const claimed = await transactionModel.findOneAndUpdate(
+        { _id: transaction._id, payment: false },
+        { payment: true },
+        { new: true },
+    )
+
+    if (!claimed) {
         throw new AppError('Payment already verified', 409)
     }
 
-    const userData = await userModel.findById(transaction.userId)
-    const creditBalance = userData.creditBalance + transaction.credits
-    await userModel.findByIdAndUpdate(userData._id, { creditBalance })
-    await transactionModel.findByIdAndUpdate(transaction._id, { payment: true })
+    await userModel.findByIdAndUpdate(claimed.userId, { $inc: { creditBalance: claimed.credits } })
 
     res.json({ success: true, message: "Credits added" })
 })
