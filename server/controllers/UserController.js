@@ -189,7 +189,41 @@ const paymentStripe = asyncHandler(async (req, res) => {
     res.json({ success: true, session_url: session.url })
 })
 
-// API Controller function to verify stripe payment
+// Credit a transaction from a Stripe Checkout Session object. Shared by two callers:
+// the browser-redirect verify path (verifyStripe) and the Stripe webhook (stripeWebhook).
+// Idempotent: the atomic payment:false -> true claim means only the first caller credits,
+// no matter how many times either path runs for the same session.
+// Returns a status string instead of throwing, so each caller maps it to its own response.
+const creditFromStripeSession = async (session) => {
+    const transaction = await transactionModel.findOne({ sessionId: session.id })
+    if (!transaction) {
+        return { status: 'no_transaction' }
+    }
+    if (session.payment_status !== 'paid') {
+        return { status: 'not_paid', transaction }
+    }
+    // The amount Stripe actually collected must match what this plan costs
+    // (amount is stored in the major unit, Stripe reports minor units).
+    if (session.amount_total !== transaction.amount * 100) {
+        return { status: 'amount_mismatch', transaction }
+    }
+
+    const claimed = await transactionModel.findOneAndUpdate(
+        { _id: transaction._id, payment: false },
+        { payment: true },
+        { new: true },
+    )
+    if (!claimed) {
+        return { status: 'already_processed', transaction }
+    }
+
+    await userModel.findByIdAndUpdate(claimed.userId, { $inc: { creditBalance: claimed.credits } })
+    return { status: 'credited', transaction: claimed }
+}
+
+// API Controller function to verify a stripe payment on the browser redirect.
+// This is the FAST PATH — it often beats the webhook, giving the user instant feedback.
+// It is no longer the only path: the webhook below credits even if the browser never returns.
 const verifyStripe = asyncHandler(async (req, res) => {
     // success is the ?success= redirect param — NOT trusted for crediting, only used as a
     // cheap early exit when the user clearly cancelled. The real proof comes from Stripe below.
@@ -220,31 +254,64 @@ const verifyStripe = asyncHandler(async (req, res) => {
         throw new AppError('Could not confirm payment with Stripe. Please try again.', 502)
     }
 
-    if (session.payment_status !== 'paid') {
-        throw new AppError('Payment not completed', 402)
+    const result = await creditFromStripeSession(session)
+
+    switch (result.status) {
+        case 'credited':
+        // 'already_processed' = the webhook (or a double-loaded /verify) got here first.
+        // That is the normal happy case once webhooks exist — report success, not an error.
+        case 'already_processed':
+            return res.json({ success: true, message: 'Credits added' })
+        case 'not_paid':
+            throw new AppError('Payment not completed', 402)
+        case 'amount_mismatch':
+            throw new AppError('Payment amount mismatch', 400)
+        case 'no_transaction':
+            throw new AppError('Transaction not found', 404)
+        default:
+            throw new AppError('Could not verify payment', 500)
     }
-    // Guard against a tampered/mismatched session: the amount Stripe collected must match
-    // what this plan costs (amount is stored in the major unit, Stripe reports minor units).
-    if (session.amount_total !== transaction.amount * 100) {
-        throw new AppError('Payment amount mismatch', 400)
+})
+
+// Stripe calls this directly, server-to-server, whenever a checkout event happens —
+// independent of the user's browser. This is the SOURCE OF TRUTH for crediting.
+// Mounted with express.raw (see routes/webhookRoutes.js) because signature verification
+// needs the exact bytes Stripe sent, before any JSON parsing.
+const stripeWebhook = asyncHandler(async (req, res) => {
+    const signature = req.headers['stripe-signature']
+
+    let event
+    try {
+        // Recomputes the signature over the raw body with our webhook secret and compares.
+        // Fails on a forged body, a replay past the tolerance window, or a wrong secret.
+        event = stripeInstance.webhooks.constructEvent(req.body, signature, env.STRIPE_WEBHOOK_SECRET)
+    } catch (err) {
+        req.log.warn({ err }, 'Stripe webhook signature verification failed')
+        return res.status(400).send('Webhook signature verification failed')
     }
 
-    // Atomic claim: only the first verify call for this transaction flips payment
-    // false -> true. A replayed / double-loaded /verify page can't credit twice.
-    const claimed = await transactionModel.findOneAndUpdate(
-        { _id: transaction._id, payment: false },
-        { payment: true },
-        { new: true },
-    )
+    // Only these event types add credits. checkout.session.completed covers instant (card)
+    // payments; async_payment_succeeded covers methods that settle later.
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+        const session = event.data.object
+        const result = await creditFromStripeSession(session)
 
-    if (!claimed) {
-        throw new AppError('Payment already verified', 409)
+        const logCtx = { sessionId: session.id, eventId: event.id, result: result.status }
+        if (result.status === 'amount_mismatch') {
+            // A genuinely paid session whose total doesn't match the plan — credit nothing, alarm.
+            req.log.error(logCtx, 'Stripe webhook: amount mismatch, did not credit')
+        } else if (result.status === 'no_transaction') {
+            req.log.warn(logCtx, 'Stripe webhook: no matching transaction for session')
+        } else {
+            req.log.info(logCtx, 'Stripe webhook processed')
+        }
     }
 
-    await userModel.findByIdAndUpdate(claimed.userId, { $inc: { creditBalance: claimed.credits } })
-
-    res.json({ success: true, message: "Credits added" })
+    // 200 for any well-formed signed event tells Stripe "received" so it stops retrying.
+    // If creditFromStripeSession threw (e.g. DB down), we never reach here — the error
+    // handler returns 500 and Stripe retries later, which is exactly what we want.
+    res.json({ received: true })
 })
 
 
-export { registerUser, loginUser, userCredits, paymentRazorpay, verifyRazorpay, paymentStripe, verifyStripe }
+export { registerUser, loginUser, userCredits, paymentRazorpay, verifyRazorpay, paymentStripe, verifyStripe, stripeWebhook }

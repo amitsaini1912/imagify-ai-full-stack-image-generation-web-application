@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import userRouter from './routes/userRoutes.js';
 import connectDB from './configs/mongodb.js';
 import imageRouter from './routes/imageRoutes.js';
+import webhookRouter from './routes/webhookRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 import { apiLimiter } from './middlewares/rateLimit.js';
 import { AppError } from './utils/AppError.js';
@@ -43,6 +44,11 @@ app.use(cors({
         callback(new AppError('Not allowed by CORS', 403))
     },
 }))
+
+// Stripe webhook — mounted BEFORE express.json() so the handler gets the raw body for
+// signature verification, and before the /api rate limiter so a burst of Stripe retries
+// can't be throttled. The router itself uses express.raw for this one route.
+app.use('/api/webhook', webhookRouter)
 
 app.use(express.json())
 

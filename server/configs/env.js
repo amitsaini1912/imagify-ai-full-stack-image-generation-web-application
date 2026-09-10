@@ -12,6 +12,9 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID:     z.string().min(1, 'RAZORPAY_KEY_ID is required'),
   RAZORPAY_KEY_SECRET: z.string().min(1, 'RAZORPAY_KEY_SECRET is required'),
   STRIPE_SECRET_KEY:   z.string().min(1, 'STRIPE_SECRET_KEY is required'),
+  // Signing secret for the Stripe webhook endpoint (starts with "whsec_").
+  // Local dev: `stripe listen --forward-to localhost:4000/api/webhook/stripe` prints one.
+  STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required'),
   CURRENCY:            z.string().min(1).default('INR'),
   // Comma-separated list of origins allowed to call this API (the client's own URL(s)).
   CLIENT_URL:          z.string().min(1).default('http://localhost:5173'),
