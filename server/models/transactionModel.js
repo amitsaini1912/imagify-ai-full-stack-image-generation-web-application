@@ -7,6 +7,7 @@ const transactionSchema = new mongoose.Schema({
     credits: { type: Number, required: true, min: 0 },
     payment: { type: Boolean, default: false },
     orderId: { type: String, index: true }, // Razorpay order id — links a verify call back to this transaction
+    sessionId: { type: String, index: true }, // Stripe Checkout Session id — verifyStripe retrieves this session from Stripe
     date: { type: Number },
 }, { timestamps: true })
 

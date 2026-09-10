@@ -30,5 +30,7 @@ export const verifyRazorpaySchema = z.object({
 
 export const verifyStripeSchema = z.object({
   transactionId: z.string().min(1, 'transactionId is required'),
-  success: z.enum(['true', 'false'], { message: 'success must be "true" or "false"' }),
+  // Just the redirect hint — the controller confirms payment with Stripe, so this is optional
+  // and never load-bearing. Kept only as a cheap "user pressed cancel" early exit.
+  success: z.enum(['true', 'false'], { message: 'success must be "true" or "false"' }).optional(),
 })

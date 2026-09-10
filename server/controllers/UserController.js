@@ -182,29 +182,66 @@ const paymentStripe = asyncHandler(async (req, res) => {
         mode: 'payment',
     })
 
+    // Store the Stripe session id now — verifyStripe retrieves this exact session from
+    // Stripe to read its real payment status, instead of trusting the browser redirect.
+    await transactionModel.findByIdAndUpdate(newTransaction._id, { sessionId: session.id })
+
     res.json({ success: true, session_url: session.url })
 })
 
 // API Controller function to verify stripe payment
 const verifyStripe = asyncHandler(async (req, res) => {
+    // success is the ?success= redirect param — NOT trusted for crediting, only used as a
+    // cheap early exit when the user clearly cancelled. The real proof comes from Stripe below.
     const { transactionId, success } = req.body
 
-    if (success !== 'true') {
-        throw new AppError('Payment was cancelled or failed', 402)
+    if (success === 'false') {
+        throw new AppError('Payment was cancelled', 402)
     }
 
     const transaction = await transactionModel.findById(transactionId)
     if (!transaction) {
         throw new AppError('Transaction not found', 404)
     }
-    if (transaction.payment) {
+    // The verify call is authenticated — only the buyer can verify their own transaction.
+    if (transaction.userId.toString() !== req.user.id) {
+        throw new AppError('Transaction not found', 404)
+    }
+    if (!transaction.sessionId) {
+        throw new AppError('This transaction has no Stripe session to verify', 400)
+    }
+
+    // Ask Stripe directly: was this Checkout Session actually paid? The browser can send
+    // anything in the URL; only Stripe knows whether money moved.
+    let session
+    try {
+        session = await stripeInstance.checkout.sessions.retrieve(transaction.sessionId)
+    } catch (err) {
+        throw new AppError('Could not confirm payment with Stripe. Please try again.', 502)
+    }
+
+    if (session.payment_status !== 'paid') {
+        throw new AppError('Payment not completed', 402)
+    }
+    // Guard against a tampered/mismatched session: the amount Stripe collected must match
+    // what this plan costs (amount is stored in the major unit, Stripe reports minor units).
+    if (session.amount_total !== transaction.amount * 100) {
+        throw new AppError('Payment amount mismatch', 400)
+    }
+
+    // Atomic claim: only the first verify call for this transaction flips payment
+    // false -> true. A replayed / double-loaded /verify page can't credit twice.
+    const claimed = await transactionModel.findOneAndUpdate(
+        { _id: transaction._id, payment: false },
+        { payment: true },
+        { new: true },
+    )
+
+    if (!claimed) {
         throw new AppError('Payment already verified', 409)
     }
 
-    const userData = await userModel.findById(transaction.userId)
-    const creditBalance = userData.creditBalance + transaction.credits
-    await userModel.findByIdAndUpdate(userData._id, { creditBalance })
-    await transactionModel.findByIdAndUpdate(transaction._id, { payment: true })
+    await userModel.findByIdAndUpdate(claimed.userId, { $inc: { creditBalance: claimed.credits } })
 
     res.json({ success: true, message: "Credits added" })
 })
