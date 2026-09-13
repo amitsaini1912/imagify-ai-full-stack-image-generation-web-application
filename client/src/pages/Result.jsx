@@ -12,6 +12,20 @@ const Result = () => {
 
   const { generateImage } = useContext(AppContext)
 
+  // The `download` attribute on a plain <a href> is ignored by browsers for a
+  // cross-origin URL (the image now lives on Cloudinary, not as a data: URI) —
+  // fetch the bytes ourselves and trigger the save from an object URL instead.
+  const handleDownload = async () => {
+    const res = await fetch(image)
+    const blob = await res.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objectUrl
+    a.download = 'imagify-generated.png'
+    a.click()
+    URL.revokeObjectURL(objectUrl)
+  }
+
   const onSubmitHandler = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -49,7 +63,7 @@ const Result = () => {
 
       {isImageLoaded && <div className='flex gap-2 flex-wrap justify-center text-white text-sm p-0.5 mt-10 rounded-full'>
         <p onClick={() => { setIsImageLoaded(false) }} className='bg-transparent border border-zinc-900 text-black px-8 py-3 rounded-full cursor-pointer'>Generate Another</p>
-        <a href={image} download className='bg-zinc-900 px-10 py-3 rounded-full cursor-pointer'>Download</a>
+        <p onClick={handleDownload} className='bg-zinc-900 text-white px-10 py-3 rounded-full cursor-pointer'>Download</p>
       </div>}
 
     </motion.form>

@@ -2,6 +2,7 @@ import axios from 'axios'
 import FormData from 'form-data'
 import userModel from '../models/userModel.js'
 import { env } from '../configs/env.js'
+import cloudinary from '../configs/cloudinary.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { AppError } from '../utils/AppError.js'
 
@@ -48,7 +49,20 @@ export const generateImage = asyncHandler(async (req, res) => {
   }
 
   const base64Image = Buffer.from(data, 'binary').toString('base64')
-  const resultImage = `data:image/png;base64,${base64Image}`
+
+  // Upload to Cloudinary instead of shipping the raw base64 string in the response —
+  // the response body and the DB (Day 15) only ever hold a small URL, not multi-MB bytes.
+  let resultImage
+  try {
+    const uploaded = await cloudinary.uploader.upload(`data:image/png;base64,${base64Image}`, {
+      folder: 'imagify',
+    })
+    resultImage = uploaded.secure_url
+  } catch (err) {
+    // Same reasoning as the Clipdrop failure above — the credit was already spent.
+    await userModel.findByIdAndUpdate(userId, { $inc: { creditBalance: 1 } })
+    throw new AppError('Could not save the generated image. Please try again.', 502)
+  }
 
   res.json({
     success: true,

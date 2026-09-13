@@ -9,6 +9,11 @@ const envSchema = z.object({
   JWT_SECRET:          z.string().min(10, 'JWT_SECRET must be at least 10 characters'),
   JWT_EXPIRES_IN:      z.string().min(1).default('7d'),
   CLIPDROP_API:        z.string().min(1, 'CLIPDROP_API is required'),
+  // Cloudinary — generated images are uploaded here; the DB/response only ever stores
+  // the resulting secure_url, never the raw image bytes.
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
+  CLOUDINARY_API_KEY:    z.string().min(1, 'CLOUDINARY_API_KEY is required'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
   RAZORPAY_KEY_ID:     z.string().min(1, 'RAZORPAY_KEY_ID is required'),
   RAZORPAY_KEY_SECRET: z.string().min(1, 'RAZORPAY_KEY_SECRET is required'),
   STRIPE_SECRET_KEY:   z.string().min(1, 'STRIPE_SECRET_KEY is required'),
