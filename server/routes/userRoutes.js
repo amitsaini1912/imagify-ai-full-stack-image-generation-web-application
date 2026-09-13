@@ -1,6 +1,7 @@
 import express from 'express'
 import {
     userCredits,
+    getPlans,
     paymentRazorpay,
     verifyRazorpay,
     registerUser,
@@ -22,6 +23,7 @@ const userRouter = express.Router()
 
 userRouter.post('/register', validate(registerSchema), registerUser)
 userRouter.post('/login', validate(loginSchema), loginUser)
+userRouter.get('/plans', getPlans) // public pricing info, no auth needed
 userRouter.get('/credits', authUser, userCredits)
 userRouter.post('/pay-razor', authUser, validate(planSchema), paymentRazorpay)
 userRouter.post('/verify-razor', validate(verifyRazorpaySchema), verifyRazorpay)

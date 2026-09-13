@@ -1,5 +1,5 @@
-import React, { useContext } from 'react'
-import { assets, plans } from '../assets/assets'
+import React, { useContext, useEffect, useState } from 'react'
+import { assets } from '../assets/assets'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -12,6 +12,22 @@ const BuyCredit = () => {
   const { backendUrl, loadCreditsData, user, token, setShowLogin } = useContext(AppContext)
 
   const navigate = useNavigate()
+
+  // Pricing lives on the server (server/configs/plans.js) — fetched once here instead
+  // of being duplicated as a hardcoded array in assets.js.
+  const [plans, setPlans] = useState([])
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data } = await axios.get(backendUrl + '/api/user/plans')
+        setPlans(data.plans)
+      } catch (error) {
+        toast.error(getErrorMessage(error))
+      }
+    }
+    fetchPlans()
+  }, [backendUrl])
 
 
   const initPay = async (order) => {
@@ -90,7 +106,7 @@ const BuyCredit = () => {
             <p className='mt-3 mb-1 font-semibold'>{item.id}</p>
             <p className='text-sm'>{item.desc}</p>
             <p className='mt-6'>
-              <span className='text-3xl font-medium'>₹{item.price}</span>/ {item.credits} credits
+              <span className='text-3xl font-medium'>₹{item.amount}</span>/ {item.credits} credits
             </p>
             <div className='flex flex-col mt-4'>
               <button onClick={() => paymentRazorpay(item.id)} className='w-full flex justify-center gap-2 border border-gray-400 mt-2 text-sm rounded-md py-2.5 min-w-52 hover:bg-blue-50 hover:border-blue-400'>

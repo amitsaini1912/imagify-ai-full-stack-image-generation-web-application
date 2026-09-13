@@ -8,6 +8,7 @@ import stripe from "stripe";
 import { env } from "../configs/env.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { AppError } from "../utils/AppError.js"
+import { PLANS } from "../configs/plans.js"
 
 // API to register user
 // body already validated + trimmed by validate(registerSchema)
@@ -60,11 +61,11 @@ const razorpayInstance = new razorpay({
     key_secret: env.RAZORPAY_KEY_SECRET,
 });
 
-const PLANS = {
-    Basic: { plan: 'Basic', credits: 100, amount: 10 },
-    Advanced: { plan: 'Advanced', credits: 500, amount: 50 },
-    Business: { plan: 'Business', credits: 5000, amount: 250 },
-}
+// GET /api/plans — public, no auth: the client fetches its pricing copy from here
+// instead of keeping a second hardcoded list in assets.js.
+const getPlans = asyncHandler(async (req, res) => {
+    res.json({ success: true, plans: Object.values(PLANS) })
+})
 
 // Payment API to add credits
 const paymentRazorpay = asyncHandler(async (req, res) => {
@@ -80,7 +81,7 @@ const paymentRazorpay = asyncHandler(async (req, res) => {
 
     const newTransaction = await transactionModel.create({
         userId,
-        plan: selected.plan,
+        plan: selected.id,
         amount: selected.amount,
         credits: selected.credits,
         date: Date.now(),
@@ -162,7 +163,7 @@ const paymentStripe = asyncHandler(async (req, res) => {
 
     const newTransaction = await transactionModel.create({
         userId,
-        plan: selected.plan,
+        plan: selected.id,
         amount: selected.amount,
         credits: selected.credits,
         date: Date.now(),
@@ -314,4 +315,4 @@ const stripeWebhook = asyncHandler(async (req, res) => {
 })
 
 
-export { registerUser, loginUser, userCredits, paymentRazorpay, verifyRazorpay, paymentStripe, verifyStripe, stripeWebhook }
+export { registerUser, loginUser, userCredits, getPlans, paymentRazorpay, verifyRazorpay, paymentStripe, verifyStripe, stripeWebhook }

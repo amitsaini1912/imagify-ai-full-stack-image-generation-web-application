@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PLANS } from '../configs/plans.js'
 
 // One schema per request body. Parsing also trims strings and lowercases emails,
 // so controllers get clean, typed data.
@@ -18,8 +19,9 @@ export const generateImageSchema = z.object({
   prompt: z.string().trim().min(1, 'A prompt is required').max(1000, 'Prompt is too long (max 1000 characters)'),
 })
 
+// Enum keys come straight from PLANS — adding/removing a plan there is the only edit needed.
 export const planSchema = z.object({
-  planId: z.enum(['Basic', 'Advanced', 'Business'], { message: 'Unknown plan' }),
+  planId: z.enum(Object.keys(PLANS), { message: 'Unknown plan' }),
 })
 
 export const verifyRazorpaySchema = z.object({
