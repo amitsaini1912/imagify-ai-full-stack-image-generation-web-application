@@ -17,3 +17,19 @@ export const validate = (schema) => (req, res, next) => {
   req.body = result.data
   next()
 }
+
+// Same idea as validate(), but for query strings (GET requests have no body).
+// zod's z.coerce handles the fact that everything in req.query starts out as a string.
+export const validateQuery = (schema) => (req, res, next) => {
+  const result = schema.safeParse(req.query)
+
+  if (!result.success) {
+    const message = result.error.issues
+      .map((issue) => `${issue.path.join('.') || 'query'}: ${issue.message}`)
+      .join('; ')
+    return next(new AppError(message, 400))
+  }
+
+  req.query = result.data
+  next()
+}

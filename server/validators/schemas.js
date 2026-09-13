@@ -19,6 +19,11 @@ export const generateImageSchema = z.object({
   prompt: z.string().trim().min(1, 'A prompt is required').max(1000, 'Prompt is too long (max 1000 characters)'),
 })
 
+export const historyQuerySchema = z.object({
+  page: z.coerce.number().int('page must be a whole number').min(1, 'page must be at least 1').default(1),
+  limit: z.coerce.number().int('limit must be a whole number').min(1, 'limit must be at least 1').max(50, 'limit is capped at 50').default(12),
+})
+
 // Enum keys come straight from PLANS — adding/removing a plan there is the only edit needed.
 export const planSchema = z.object({
   planId: z.enum(Object.keys(PLANS), { message: 'Unknown plan' }),

@@ -1,6 +1,7 @@
 import axios from 'axios'
 import FormData from 'form-data'
 import userModel from '../models/userModel.js'
+import generationModel from '../models/generationModel.js'
 import { env } from '../configs/env.js'
 import cloudinary from '../configs/cloudinary.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
@@ -64,10 +65,40 @@ export const generateImage = asyncHandler(async (req, res) => {
     throw new AppError('Could not save the generated image. Please try again.', 502)
   }
 
+  // Best-effort: the image is already generated, uploaded, and paid for by this point.
+  // A history-write failure shouldn't turn a successful generation into an error response —
+  // log it and move on instead of throwing.
+  try {
+    await generationModel.create({ userId, prompt, imageUrl: resultImage })
+  } catch (err) {
+    req.log.warn({ err }, 'Failed to save generation history record')
+  }
+
   res.json({
     success: true,
     message: 'Image generated',
     resultImage,
     creditBalance: deducted.creditBalance,
+  })
+})
+
+// Controller function to list a user's past generations, newest first.
+// GET /api/image/history?page=&limit=
+export const getHistory = asyncHandler(async (req, res) => {
+  const userId = req.user.id
+  // page/limit already coerced to ints + clamped by validateQuery(historyQuerySchema)
+  const { page, limit } = req.query
+
+  const skip = (page - 1) * limit
+
+  const [generations, total] = await Promise.all([
+    generationModel.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    generationModel.countDocuments({ userId }),
+  ])
+
+  res.json({
+    success: true,
+    generations,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   })
 })
