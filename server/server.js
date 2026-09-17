@@ -2,6 +2,8 @@ import { env } from './configs/env.js'; // FIRST — validates all env vars befo
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import swaggerUi from 'swagger-ui-express'
+import { openapiSpec } from './configs/openapi.js';
 import userRouter from './routes/userRoutes.js';
 import connectDB from './configs/mongodb.js';
 import imageRouter from './routes/imageRoutes.js';
@@ -51,6 +53,10 @@ app.use(cors({
 app.use('/api/webhook', webhookRouter)
 
 app.use(express.json())
+
+// Docs are mounted before the rate limiter (and don't need auth) — a developer refreshing
+// Swagger UI while testing shouldn't eat into the same 100-req/15min budget as real API calls.
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec))
 
 // Global request budget, applied before any route runs.
 app.use('/api', apiLimiter)
