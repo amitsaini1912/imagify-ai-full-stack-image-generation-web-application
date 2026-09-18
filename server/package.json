@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "server": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "author": "",
   "license": "ISC",
@@ -30,5 +32,9 @@
     "stripe": "^17.3.1",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2",
+    "vitest": "^5.0.1"
   }
 }
