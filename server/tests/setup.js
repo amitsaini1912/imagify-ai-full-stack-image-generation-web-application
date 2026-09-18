@@ -3,6 +3,10 @@
 // before any test imports a module that (transitively) imports env.js. No real DB/API
 // keys are used anywhere in the suite; nothing here ever makes a network call.
 process.env.NODE_ENV = 'test'
+// Quiets pino-http's request-completion lines (info/warn) in test output — real errors
+// (fatal) would still show. Integration tests (Day 18) exercise the real logger; unit
+// tests stub req.log directly and never touch this.
+process.env.LOG_LEVEL = 'fatal'
 process.env.MONGODB_URI = 'mongodb://localhost/imagify-test'
 process.env.JWT_SECRET = 'test-jwt-secret-not-real'
 process.env.CLIPDROP_API = 'test-clipdrop-key'
