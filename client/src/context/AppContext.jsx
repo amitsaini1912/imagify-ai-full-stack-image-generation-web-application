@@ -6,7 +6,8 @@ import { getErrorMessage } from "../utils/getErrorMessage";
 
 export const AppContext = createContext()
 
-const AppContextProvider = (props) => {
+// eslint-disable-next-line react/prop-types -- Provider passing through arbitrary children; this codebase doesn't use PropTypes elsewhere.
+const AppContextProvider = ({ children }) => {
 
     const [showLogin, setShowLogin] = useState(false)
     const [token, setToken] = useState(localStorage.getItem('token'))
@@ -68,7 +69,7 @@ const AppContextProvider = (props) => {
 
     return (
         <AppContext.Provider value={value}>
-            {props.children}
+            {children}
         </AppContext.Provider>
     )
 
