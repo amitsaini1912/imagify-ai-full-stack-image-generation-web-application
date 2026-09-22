@@ -7,6 +7,7 @@ import { openapiSpec } from './configs/openapi.js';
 import userRouter from './routes/userRoutes.js';
 import imageRouter from './routes/imageRoutes.js';
 import webhookRouter from './routes/webhookRoutes.js';
+import healthRouter from './routes/healthRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 import { apiLimiter } from './middlewares/rateLimit.js';
 import { AppError } from './utils/AppError.js';
@@ -23,6 +24,11 @@ app.use(requestLogger)
 app.use(attachRequestId)
 
 app.use(helmet())
+
+// Health checks — mounted before CORS/rate-limiting/auth so an orchestrator or load
+// balancer polling from outside a browser (no Origin header, no token) is never blocked
+// by rules that only make sense for real API traffic.
+app.use(healthRouter)
 
 // Only these origins may call the API — anything else is rejected before it reaches a route.
 const allowedOrigins = env.CLIENT_URL.split(',').map((origin) => origin.trim())

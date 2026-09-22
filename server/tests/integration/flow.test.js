@@ -160,3 +160,14 @@ describe('register -> login -> generate -> buy (real in-memory MongoDB)', () => 
     expect(creditsAfterReplay.body.credits).toBe(104) // unchanged
   })
 })
+
+describe('GET /readyz (real in-memory MongoDB, actually connected)', () => {
+  it('returns 200 once Mongo is connected', async () => {
+    // Unlike health.test.js's unit test (no DB, always 503), this file connects to a real
+    // mongod in beforeAll — so this is the one place that proves the "connected" branch.
+    const res = await request(app).get('/readyz')
+
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('ok')
+  })
+})
