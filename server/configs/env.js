@@ -23,6 +23,10 @@ const envSchema = z.object({
   CURRENCY:            z.string().min(1).default('INR'),
   // Comma-separated list of origins allowed to call this API (the client's own URL(s)).
   CLIENT_URL:          z.string().min(1).default('http://localhost:5173'),
+  // Rate-limit store + credit-balance cache. Optional, not required like MONGODB_URI —
+  // both consumers degrade gracefully if Redis is unreachable, so a missing/wrong value
+  // just means slower reads and no shared rate-limit counters, not a boot failure.
+  REDIS_URL:           z.string().min(1).default('redis://localhost:6379'),
   LOG_LEVEL:           z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 })
 

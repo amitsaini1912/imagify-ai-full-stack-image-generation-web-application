@@ -6,6 +6,7 @@ import { env } from '../configs/env.js'
 import cloudinary from '../configs/cloudinary.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { AppError } from '../utils/AppError.js'
+import { invalidateCreditsCache } from '../services/creditsCache.js'
 
 const CLIPDROP_URL = 'https://clipdrop-api.co/text-to-image/v1'
 
@@ -34,6 +35,8 @@ export const generateImage = asyncHandler(async (req, res) => {
     throw new AppError('No credit balance. Please buy a plan.', 402)
   }
 
+  await invalidateCreditsCache(userId)
+
   const formdata = new FormData()
   formdata.append('prompt', prompt)
 
@@ -46,6 +49,7 @@ export const generateImage = asyncHandler(async (req, res) => {
   } catch (err) {
     // The upstream image service failed after we already spent the credit — give it back.
     await userModel.findByIdAndUpdate(userId, { $inc: { creditBalance: 1 } })
+    await invalidateCreditsCache(userId)
     throw new AppError('Image generation service is unavailable. Please try again.', 502)
   }
 
@@ -62,6 +66,7 @@ export const generateImage = asyncHandler(async (req, res) => {
   } catch (err) {
     // Same reasoning as the Clipdrop failure above — the credit was already spent.
     await userModel.findByIdAndUpdate(userId, { $inc: { creditBalance: 1 } })
+    await invalidateCreditsCache(userId)
     throw new AppError('Could not save the generated image. Please try again.', 502)
   }
 

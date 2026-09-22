@@ -19,11 +19,15 @@ vi.mock('axios', () => ({
 vi.mock('../../configs/cloudinary.js', () => ({
   default: { uploader: { upload: vi.fn() } },
 }))
+vi.mock('../../services/creditsCache.js', () => ({
+  invalidateCreditsCache: vi.fn(),
+}))
 
 import userModel from '../../models/userModel.js'
 import generationModel from '../../models/generationModel.js'
 import axios from 'axios'
 import cloudinary from '../../configs/cloudinary.js'
+import { invalidateCreditsCache } from '../../services/creditsCache.js'
 import { generateImage } from '../../controllers/imageController.js'
 
 function buildReqRes(prompt = 'a cat wearing sunglasses') {
@@ -53,6 +57,9 @@ describe('generateImage — atomic credit deduction + refund', () => {
       { new: true },
     )
     expect(next).not.toHaveBeenCalled()
+    // Successful deduct changed the real balance — the cached read must not keep serving
+    // the pre-deduction number.
+    expect(invalidateCreditsCache).toHaveBeenCalledWith('user-1')
   })
 
   it('rejects with 402 when the atomic decrement matches nothing but the user exists', async () => {
@@ -65,6 +72,8 @@ describe('generateImage — atomic credit deduction + refund', () => {
     expect(next).toHaveBeenCalledTimes(1)
     expect(next.mock.calls[0][0].statusCode).toBe(402)
     expect(axios.post).not.toHaveBeenCalled()
+    // Nothing actually changed — invalidating here would just be an unnecessary Redis call.
+    expect(invalidateCreditsCache).not.toHaveBeenCalled()
   })
 
   it('rejects with 404 when the decrement matches nothing because the user does not exist', async () => {
@@ -87,6 +96,10 @@ describe('generateImage — atomic credit deduction + refund', () => {
     expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith('user-1', { $inc: { creditBalance: 1 } })
     expect(next.mock.calls[0][0].statusCode).toBe(502)
     expect(cloudinary.uploader.upload).not.toHaveBeenCalled()
+    // Balance changed twice (deduct, then refund) — invalidated both times, or a request
+    // landing between them would read a stale, already-wrong cached number.
+    expect(invalidateCreditsCache).toHaveBeenCalledTimes(2)
+    expect(invalidateCreditsCache).toHaveBeenCalledWith('user-1')
   })
 
   it('refunds the credit when the Cloudinary upload fails', async () => {
@@ -99,6 +112,7 @@ describe('generateImage — atomic credit deduction + refund', () => {
 
     expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith('user-1', { $inc: { creditBalance: 1 } })
     expect(next.mock.calls[0][0].statusCode).toBe(502)
+    expect(invalidateCreditsCache).toHaveBeenCalledTimes(2)
   })
 
   it('on success: no refund, saves history, responds with the post-deduction balance', async () => {
@@ -123,6 +137,7 @@ describe('generateImage — atomic credit deduction + refund', () => {
       creditBalance: 4,
     })
     expect(next).not.toHaveBeenCalled()
+    expect(invalidateCreditsCache).toHaveBeenCalledTimes(1)
   })
 
   it('still returns success if saving history fails — best-effort, never thrown', async () => {

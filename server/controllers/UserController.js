@@ -9,6 +9,7 @@ import { env } from "../configs/env.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { AppError } from "../utils/AppError.js"
 import { PLANS } from "../configs/plans.js"
+import { getCachedCredits, setCachedCredits, invalidateCreditsCache } from "../services/creditsCache.js"
 
 // API to register user
 // body already validated + trimmed by validate(registerSchema)
@@ -46,13 +47,21 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // API Controller function to get user available credits data
 const userCredits = asyncHandler(async (req, res) => {
+    const cached = await getCachedCredits(req.user.id)
+    if (cached) {
+        return res.json({ success: true, ...cached })
+    }
+
     const user = await userModel.findById(req.user.id)
 
     if (!user) {
         throw new AppError('User not found', 404)
     }
 
-    res.json({ success: true, credits: user.creditBalance, user: { name: user.name } })
+    const payload = { credits: user.creditBalance, user: { name: user.name } }
+    await setCachedCredits(req.user.id, payload)
+
+    res.json({ success: true, ...payload })
 })
 
 // razorpay gateway initialize
@@ -141,6 +150,7 @@ const verifyRazorpay = asyncHandler(async (req, res) => {
     }
 
     await userModel.findByIdAndUpdate(claimed.userId, { $inc: { creditBalance: claimed.credits } })
+    await invalidateCreditsCache(claimed.userId)
 
     res.json({ success: true, message: "Credits added" })
 })
@@ -219,6 +229,7 @@ const creditFromStripeSession = async (session) => {
     }
 
     await userModel.findByIdAndUpdate(claimed.userId, { $inc: { creditBalance: claimed.credits } })
+    await invalidateCreditsCache(claimed.userId)
     return { status: 'credited', transaction: claimed }
 }
 

@@ -2,6 +2,7 @@ import { env } from './configs/env.js'; // FIRST — validates all env vars befo
 import mongoose from 'mongoose';
 import app from './app.js';
 import connectDB from './configs/mongodb.js';
+import { redisClient, connectRedis } from './configs/redis.js';
 import { logger } from './configs/logger.js';
 import { shutdownState } from './configs/shutdownState.js';
 
@@ -13,6 +14,16 @@ try {
     logger.error({ err: error }, 'Failed to connect to MongoDB');
     process.exit(1);
 }
+
+// Unlike Mongo above, a failed (or slow) Redis connection must never delay boot at all —
+// deliberately NOT awaited. node-redis's default reconnect strategy retries with backoff
+// indefinitely when Redis is unreachable, so `await`ing this here would leave the process
+// stuck before ever calling app.listen() for as long as Redis stays down — turning a soft
+// dependency into a hard one by accident. Firing it and moving on immediately is what
+// actually keeps the rate limiter and credits cache's graceful degradation meaningful.
+connectRedis().catch((error) => {
+    logger.warn({ err: error }, 'Could not connect to Redis at startup — rate limiting and credit caching will degrade until it is reachable')
+})
 
 const server = app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 
@@ -44,10 +55,16 @@ const shutdown = (signal) => {
 
         try {
             await mongoose.connection.close()
-            logger.info('MongoDB connection closed, exiting cleanly')
+            // isOpen guards the case where Redis was never reachable in the first place
+            // (the startup connectRedis() above already logged and moved on) — quitting a
+            // client that was never open would itself throw.
+            if (redisClient.isOpen) {
+                await redisClient.quit()
+            }
+            logger.info('MongoDB and Redis connections closed, exiting cleanly')
             process.exit(0)
         } catch (closeError) {
-            logger.error({ err: closeError }, 'Error while closing MongoDB connection')
+            logger.error({ err: closeError }, 'Error while closing MongoDB/Redis connections')
             process.exit(1)
         }
     })
