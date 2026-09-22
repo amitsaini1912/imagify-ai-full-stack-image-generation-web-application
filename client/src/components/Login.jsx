@@ -13,7 +13,7 @@ const Login = () => {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
 
-    const { setShowLogin, setToken, setUser } = useContext(AppContext)
+    const { setShowLogin, setToken } = useContext(AppContext)
 
     const onSubmitHandler = async (e) => {
         e.preventDefault()
@@ -24,9 +24,11 @@ const Login = () => {
 
             const { data } = await api.post(url, payload)
 
-            setToken(data.token)
-            setUser(data.user)
+            // setToken triggers AppContext's credits query (queryKey includes token,
+            // enabled: !!token) — that single fetch brings back both credits and user,
+            // so there's no separate setUser here anymore.
             localStorage.setItem('token', data.token)
+            setToken(data.token)
             setShowLogin(false)
         } catch (error) {
             toast.error(getErrorMessage(error))
