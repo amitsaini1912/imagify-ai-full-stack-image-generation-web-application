@@ -11,7 +11,18 @@ import { logger } from '../configs/logger.js'
 // issued mid-reconnect can hang for node-redis's own much longer internal timeout — which
 // would mean every single request stalls for seconds during a Redis outage, even though
 // passOnStoreError below is specifically there to prevent exactly that kind of stall.
-const redisStore = () => new RedisStore({
+//
+// `namespace` is not optional. RedisStore's default key prefix is the same fixed string
+// ("rl:") for every instance, and express-rate-limit's default keyGenerator is just the
+// client IP — with the old in-memory store this never mattered (each limiter privately
+// owned its own separate Map), but on a *shared* Redis store, every limiter created
+// without a distinct prefix collides on the exact same key ("rl:<ip>"). A test written
+// for today's new authLimiter caught this: it and apiLimiter were both incrementing one
+// shared counter, so 10-per-15-min was actually enforced after 5 real requests (each
+// counted twice). Every limiter below now gets its own namespaced prefix so their counts
+// are genuinely independent, the way "stacked" limits were always meant to work.
+const redisStore = (namespace) => new RedisStore({
+  prefix: `rl:${namespace}:`,
   sendCommand: (...args) => withRedisTimeout(redisClient.sendCommand(args)),
 })
 
@@ -31,7 +42,7 @@ export const apiLimiter = rateLimit({
   standardHeaders: true, // adds RateLimit-* response headers
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please try again later.' },
-  store: redisStore(),
+  store: redisStore('api'),
   passOnStoreError: true,
   logger,
 })
@@ -44,7 +55,24 @@ export const imageLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many image requests. Please slow down and try again later.' },
-  store: redisStore(),
+  store: redisStore('image'),
+  passOnStoreError: true,
+  logger,
+})
+
+// Found during Day 25's security review: /login and /register were only ever covered by
+// the generic 100-per-15-min apiLimiter above — generous enough that it does essentially
+// nothing to slow down credential stuffing or a password-guessing script against one
+// account (100 guesses/15min from a single IP is still thousands per day). 10 per 15 min,
+// stacked on top of the global limiter, actually changes the economics of guessing a
+// password; a real user mistyping their password a few times never notices it.
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many login attempts. Please try again later.' },
+  store: redisStore('auth'),
   passOnStoreError: true,
   logger,
 })

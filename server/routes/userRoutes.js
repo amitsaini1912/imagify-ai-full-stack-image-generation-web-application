@@ -11,6 +11,7 @@ import {
 } from '../controllers/UserController.js'
 import authUser from '../middlewares/auth.js'
 import { validate } from '../middlewares/validate.js'
+import { authLimiter } from '../middlewares/rateLimit.js'
 import {
     registerSchema,
     loginSchema,
@@ -21,8 +22,10 @@ import {
 
 const userRouter = express.Router()
 
-userRouter.post('/register', validate(registerSchema), registerUser)
-userRouter.post('/login', validate(loginSchema), loginUser)
+// authLimiter runs before validation — a scripted flood of bad login attempts gets capped
+// before it even touches bcrypt.compare (deliberately slow, by design) or the DB.
+userRouter.post('/register', authLimiter, validate(registerSchema), registerUser)
+userRouter.post('/login', authLimiter, validate(loginSchema), loginUser)
 userRouter.get('/plans', getPlans) // public pricing info, no auth needed
 userRouter.get('/credits', authUser, userCredits)
 userRouter.post('/pay-razor', authUser, validate(planSchema), paymentRazorpay)
