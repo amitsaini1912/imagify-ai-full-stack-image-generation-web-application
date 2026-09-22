@@ -1,8 +1,8 @@
 import { createContext, useEffect, useState } from "react";
-import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../utils/getErrorMessage";
+import api, { SESSION_EXPIRED_EVENT } from "../api/client";
 
 export const AppContext = createContext()
 
@@ -15,12 +15,11 @@ const AppContextProvider = ({ children }) => {
 
     const [credit, setCredit] = useState(false)
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL
     const navigate = useNavigate()
 
     const loadCreditsData = async () => {
         try {
-            const { data } = await axios.get(backendUrl + '/api/user/credits', { headers: { Authorization: `Bearer ${token}` } })
+            const { data } = await api.get('/api/user/credits')
             setCredit(data.credits)
             setUser(data.user)
         } catch (error) {
@@ -31,7 +30,7 @@ const AppContextProvider = ({ children }) => {
 
     const generateImage = async (prompt) => {
         try {
-            const { data } = await axios.post(backendUrl + '/api/image/generate-image', { prompt }, { headers: { Authorization: `Bearer ${token}` } })
+            const { data } = await api.post('/api/image/generate-image', { prompt })
             loadCreditsData()
             return data.resultImage
         } catch (error) {
@@ -56,13 +55,28 @@ const AppContextProvider = ({ children }) => {
         }
     },[token])
 
+    // The axios layer (src/api/client.js) can't call useNavigate() or touch this state
+    // directly — it's a plain module, not a component. A 401 there clears the token and
+    // broadcasts this event; here, where React state and the router both live, is where
+    // that turns into an actual logout + a prompt to sign back in.
+    useEffect(() => {
+        const handleSessionExpired = () => {
+            logout()
+            toast.info('Session expired — please log in again')
+            setShowLogin(true)
+            navigate('/')
+        }
+
+        window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+        return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+    }, [navigate])
+
     const value = {
         token, setToken,
         user, setUser,
         showLogin, setShowLogin,
         credit, setCredit,
         loadCreditsData,
-        backendUrl,
         generateImage,
         logout
     }

@@ -1,10 +1,10 @@
 import { useContext, useEffect, useState } from 'react'
 import { assets } from '../assets/assets'
 import { AppContext } from '../context/AppContext'
-import axios from 'axios'
 import { toast } from 'react-toastify'
 import { motion } from 'framer-motion'
 import { getErrorMessage } from '../utils/getErrorMessage'
+import api from '../api/client'
 
 const Login = () => {
 
@@ -13,7 +13,7 @@ const Login = () => {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
 
-    const { backendUrl, setShowLogin, setToken, setUser } = useContext(AppContext)
+    const { setShowLogin, setToken, setUser } = useContext(AppContext)
 
     const onSubmitHandler = async (e) => {
         e.preventDefault()
@@ -22,7 +22,7 @@ const Login = () => {
             const url = state === 'Login' ? '/api/user/login' : '/api/user/register'
             const payload = state === 'Login' ? { email, password } : { name, email, password }
 
-            const { data } = await axios.post(backendUrl + url, payload)
+            const { data } = await api.post(url, payload)
 
             setToken(data.token)
             setUser(data.user)

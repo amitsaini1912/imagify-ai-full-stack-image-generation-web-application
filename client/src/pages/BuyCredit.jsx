@@ -3,13 +3,13 @@ import { assets } from '../assets/assets'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import axios from 'axios'
 import { motion } from 'framer-motion'
 import { getErrorMessage } from '../utils/getErrorMessage'
+import api from '../api/client'
 
 const BuyCredit = () => {
 
-  const { backendUrl, loadCreditsData, user, token, setShowLogin } = useContext(AppContext)
+  const { loadCreditsData, user, setShowLogin } = useContext(AppContext)
 
   const navigate = useNavigate()
 
@@ -20,14 +20,14 @@ const BuyCredit = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const { data } = await axios.get(backendUrl + '/api/user/plans')
+        const { data } = await api.get('/api/user/plans')
         setPlans(data.plans)
       } catch (error) {
         toast.error(getErrorMessage(error))
       }
     }
     fetchPlans()
-  }, [backendUrl])
+  }, [])
 
 
   const initPay = async (order) => {
@@ -43,7 +43,7 @@ const BuyCredit = () => {
       handler: async (response) => {
 
         try {
-          await axios.post(backendUrl + '/api/user/verify-razor', response, { headers: { Authorization: `Bearer ${token}` } })
+          await api.post('/api/user/verify-razor', response)
           loadCreditsData()
           navigate('/')
           toast.success('Credits added')
@@ -67,7 +67,7 @@ const BuyCredit = () => {
         return
       }
 
-      const { data } = await axios.post(backendUrl + '/api/user/pay-razor', { planId }, { headers: { Authorization: `Bearer ${token}` } })
+      const { data } = await api.post('/api/user/pay-razor', { planId })
       initPay(data.order)
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -82,7 +82,7 @@ const BuyCredit = () => {
         return
       }
 
-      const { data } = await axios.post(backendUrl + '/api/user/pay-stripe', { planId }, { headers: { Authorization: `Bearer ${token}` } })
+      const { data } = await api.post('/api/user/pay-stripe', { planId })
       window.location.replace(data.session_url)
     } catch (error) {
       console.log(error)

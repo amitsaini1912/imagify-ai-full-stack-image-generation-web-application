@@ -1,9 +1,9 @@
-import axios from 'axios';
 import { useContext, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppContext } from '../context/AppContext';
 import { toast } from 'react-toastify';
 import { getErrorMessage } from '../utils/getErrorMessage';
+import api from '../api/client'
 
 const Verify = () => {
 
@@ -12,7 +12,7 @@ const Verify = () => {
     const success = searchParams.get("success")
     const transactionId = searchParams.get("transactionId")
 
-    const { backendUrl, loadCreditsData, token } = useContext(AppContext)
+    const { loadCreditsData, token } = useContext(AppContext)
 
     const navigate = useNavigate()
 
@@ -20,7 +20,7 @@ const Verify = () => {
     const verifyStripe = async () => {
 
         try {
-            const { data } = await axios.post(backendUrl + "/api/user/verify-stripe", { success, transactionId }, { headers: { Authorization: `Bearer ${token}` } })
+            const { data } = await api.post("/api/user/verify-stripe", { success, transactionId })
             toast.success(data.message)
             loadCreditsData()
         } catch (error) {
